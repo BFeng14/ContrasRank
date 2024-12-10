@@ -155,6 +155,16 @@ class ContrasRankTest(UnicoreTask):
             type=Boolean,
             help="whether test model",
         )
+        parser.add_argument(
+            "--demo-lig-file",
+            type=str,
+            default=""
+        )
+        parser.add_argument(
+            "--demo-prot-file",
+            type=str,
+            default=""
+        )
         parser.add_argument("--reg", action="store_true", help="regression task")
 
     def __init__(self, args, dictionary, pocket_dictionary):
@@ -171,7 +181,7 @@ class ContrasRankTest(UnicoreTask):
     @classmethod
     def setup_task(cls, args, **kwargs):
         mol_dictionary = Dictionary.load(os.path.join(PROJECT_ROOT, "vocab", "dict_mol.txt"))
-        pocket_dictionary = Dictionary.load(os.path.join(PROJECT_ROOT, "vocab" "dict_pkt.txt"))
+        pocket_dictionary = Dictionary.load(os.path.join(PROJECT_ROOT, "vocab", "dict_pkt.txt"))
         logger.info("ligand dictionary: {} types".format(len(mol_dictionary)))
         logger.info("pocket dictionary: {} types".format(len(pocket_dictionary)))
         return cls(args, mol_dictionary, pocket_dictionary)
@@ -1043,8 +1053,40 @@ class ContrasRankTest(UnicoreTask):
 
         return
 
-    def test_fep_target(self, target, model, label_info, **kwargs):
+    def test_demo(self, model):
+        data_path = self.args.results_path.demo_lig_file
+        mol_dataset = self.load_mols_dataset(data_path, "atoms", "coordinates")
 
+        bsz = 64
+        mol_reps = []
+        mol_smis = []
+        mol_data = torch.utils.data.DataLoader(mol_dataset, batch_size=bsz, collate_fn=mol_dataset.collater)
+
+        for _, sample in enumerate(mol_data):
+            sample = unicore.utils.move_to_cuda(sample)
+            mol_emb = model.mol_forward(**sample["net_input"])
+            mol_emb = mol_emb.detach().cpu().numpy()
+            # print(mol_emb.dtype)
+            mol_reps.append(mol_emb)
+            mol_smis.extend(sample["smi_name"])
+        mol_reps = np.concatenate(mol_reps, axis=0)
+
+        data_path = self.args.results_path.demo_prot_file
+        pocket_dataset = self.load_pockets_dataset(data_path)
+        pocket_data = torch.utils.data.DataLoader(pocket_dataset, batch_size=bsz, collate_fn=pocket_dataset.collater)
+        sample = list(pocket_data)[0]
+
+        sample = unicore.utils.move_to_cuda(sample)
+        seq = get_uniprot_seq(self.args.uniprot)
+        pocket_emb = model.pocket_forward(protein_sequences=seq, **sample["net_input"])
+        pocket_reps = pocket_emb.detach().cpu().numpy()
+
+        os.system(f"mkdir -p {self.args.results_path}")
+        json.dump(mol_smis, open(f"{self.args.results_path}/saved_smis.json", "w"))
+        np.save(f"{self.args.results_path}/saved_mols_embed.npy", mol_reps)
+        np.save(f"{self.args.results_path}/saved_target_embed.npy", pocket_reps)
+
+    def test_fep_target(self, target, model, label_info, **kwargs):
         data_path = f"/content/ContrasRank/test_datasets/FEP/{target}_lig.lmdb"
         mol_dataset = self.load_mols_dataset(data_path, "atoms", "coordinates")
         num_data = len(mol_dataset)

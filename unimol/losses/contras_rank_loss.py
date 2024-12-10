@@ -19,6 +19,7 @@ import random
 import scipy.stats as stats
 from scipy import stats
 
+
 def calculate_bedroc(y_true, y_score, alpha):
     """
     Calculate BEDROC score.
@@ -31,14 +32,14 @@ def calculate_bedroc(y_true, y_score, alpha):
     Returns:
     - BEDROC score
     """
-    
-        # concate res_single and labels
+
+    # concate res_single and labels
     scores = np.expand_dims(y_score, axis=1)
     y_true = np.expand_dims(y_true, axis=1)
-    #print(scores.shape, y_true.shape)
+    # print(scores.shape, y_true.shape)
     scores = np.concatenate((scores, y_true), axis=1)
     # inverse sort scores based on first column
-    scores = scores[scores[:,0].argsort()[::-1]]
+    scores = scores[scores[:, 0].argsort()[::-1]]
     bedroc = CalcBEDROC(scores, 1, 80.5)
     return bedroc
 
@@ -87,7 +88,7 @@ class RSLoss(UnicoreLoss):
 
         if not self.training:
             # For training
-            if self.args.valid_set in ["FEP", "TIME", "TYK2", "OOD"]:
+            if self.args.valid_set in ["FEP", "TIME", "TYK2", "OOD", "DEMO"]:
                 sample_size = logit_output.size(0)
                 logging_output = {
                     "loss": loss_dict_accum["loss"].data,
@@ -144,7 +145,7 @@ class RSLoss(UnicoreLoss):
         mol_mask = torch.zeros_like(net_output)
         for i in range(num_pocket):
             range_i = batch_list[i]
-            idx2pocket += [i]*(range_i[1]-range_i[0])
+            idx2pocket += [i] * (range_i[1] - range_i[0])
             smi_pocket_i = smi_list[range_i[0]: range_i[1]]
             for j in range(num_pocket):
                 if j == i:
@@ -159,7 +160,6 @@ class RSLoss(UnicoreLoss):
                 for k in range(range_j[0], range_j[1]):
                     if smi_list[k] in smi_pocket_i:
                         mol_mask[i, k] = -1e9
-
 
         net_output = net_output + uniprotid_mask + mol_mask
 
@@ -198,7 +198,7 @@ class RSLoss(UnicoreLoss):
                     for idx in range(0, range_i[1] - range_i[0]):
                         if idx == k:
                             continue
-                        if act_list_i[k] - math.log10(3) <= act_list_i[idx]: # three times
+                        if act_list_i[k] - math.log10(3) <= act_list_i[idx]:  # three times
                             mask[idx] = -1e9
                     lprobs_mol = F.log_softmax(mask + output_i, dim=-1)
                     loss_tmp = F.nll_loss(
@@ -246,7 +246,6 @@ class RSLoss(UnicoreLoss):
                 "loss_mol": loss_mol,
                 "loss_rank": loss_rank}
 
-
     @staticmethod
     def reduce_metrics(logging_outputs, split="valid", args=None) -> None:
         """Aggregate logging outputs from data parallel training."""
@@ -265,7 +264,7 @@ class RSLoss(UnicoreLoss):
                 metrics.log_scalar(
                     key, loss_sum / sample_size, sample_size, round=3
                 )
-        elif valid_set in ["FEP", "TIME", "TYK2", "OOD"]:
+        elif valid_set in ["FEP", "TIME", "TYK2", "OOD", "DEMO"]:
             corrs = []
             pearsons = []
             r2s = []
@@ -312,16 +311,19 @@ class RSLoss(UnicoreLoss):
             import os
             rank = int(os.environ["LOCAL_RANK"])
             if rank == 0 and args.few_shot:
-                write_file = f"{args.results_path}/{split_method}_{args.seed}_sup{sup_num}.jsonl"
-                if args.active_learning_resfile != "":
-                    write_file = f"{args.results_path}/{args.active_learning_resfile}"
+                if args.results_path.endswith(".jsonl"):
+                    write_file = args.results_path
+                else:
+                    write_file = f"{args.results_path}/{split_method}_{args.seed}_sup{sup_num}.jsonl"
+                    if args.active_learning_resfile != "":
+                        write_file = f"{args.results_path}/{args.active_learning_resfile}"
                 import os
                 if not os.path.exists(write_file):
                     with open(write_file, "a") as f:
                         f.write(json.dumps(info_dict) + "\n")
                 with open(write_file, "a") as f:
-                    f.write(json.dumps(res_dict)+"\n")
-                print(f"saving to {args.results_path}/{split_method}_{args.seed}_sup{sup_num}.jsonl")
+                    f.write(json.dumps(res_dict) + "\n")
+                print(f"saving to {write_file}")
 
         else:
             acc_sum = sum(sum(log.get("prob").argmax(dim=-1) == log.get("target")) for log in logging_outputs)
@@ -399,12 +401,11 @@ class MSELoss(RSLoss):
         else:
             loss = torch.tensor(0., device=pred_actvity.device)
 
-
         if not self.training:
             # For training
             # print(pred_actvity)
             sample_size = 1
-            if self.args.valid_set in ["FEP", "TIME", "TYK2", "OOD"]:
+            if self.args.valid_set in ["FEP", "TIME", "TYK2", "OOD", "DEMO"]:
                 logging_output = {
                     "loss": loss.data,
                     "logit_output": pred_actvity,

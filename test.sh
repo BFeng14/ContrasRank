@@ -2,10 +2,8 @@ batch_size=256
 
 TASK=${1}
 arch=${2}
-weight_dir=${3}
-results_dir=${4}
-weight_path="${weight_dir}"
-results_path="${results_dir}"
+weight_path=${3}
+results_path=${4}
 echo "writing to ${results_path}"
 
 mkdir -p $results_path

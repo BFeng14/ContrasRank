@@ -77,6 +77,9 @@ def main(args):
         elif args.test_task=="DEKOIS":
             task.test_dekois(model)
 
+        elif args.test_task=="DEMO":
+            task.test_demo(model)
+
         elif args.test_task=="BDB":
             task.test_bdb_lig(model)
             task.test_bdb_pocket(model)

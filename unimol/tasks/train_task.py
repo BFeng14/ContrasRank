@@ -311,7 +311,7 @@ class pocketscreen(UnicoreTask):
     @classmethod
     def setup_task(cls, args, **kwargs):
         mol_dictionary = Dictionary.load(os.path.join(PROJECT_ROOT, "vocab", "dict_mol.txt"))
-        pocket_dictionary = Dictionary.load(os.path.join(PROJECT_ROOT, "vocab" "dict_pkt.txt"))
+        pocket_dictionary = Dictionary.load(os.path.join(PROJECT_ROOT, "vocab", "dict_pkt.txt"))
         logger.info("ligand dictionary: {} types".format(len(mol_dictionary)))
         logger.info("pocket dictionary: {} types".format(len(pocket_dictionary)))
         return cls(args, mol_dictionary, pocket_dictionary)
@@ -319,7 +319,7 @@ class pocketscreen(UnicoreTask):
     def load_few_shot_demo_dataset(self, split, **kwargs):
         ligands_lmdb = os.path.join(self.args.demo_lig_file)
         pocket_lmdb = os.path.join(self.args.demo_prot_file)
-        split_info = json.load(self.args.demo_split_file)
+        split_info = json.load(open(self.args.demo_split_file))
         import copy
         pair_label = copy.deepcopy(split_info)
 
@@ -515,6 +515,8 @@ class pocketscreen(UnicoreTask):
                 return self.load_few_shot_timesplit(split, **kwargs)
             elif self.args.valid_set == "OOD":
                 return self.load_few_shot_ood_dataset(split, **kwargs)
+            elif self.args.valid_set == "DEMO":
+                return self.load_few_shot_demo_dataset(split, **kwargs)
 
         protein_clstr_dict = {}
         if self.args.protein_similarity_thres == 0.4:

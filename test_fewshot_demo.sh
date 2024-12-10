@@ -1,8 +1,8 @@
 data_path="./vocab"
 
 n_gpu=1
-batch_size=8
-batch_size_valid=16
+batch_size=1
+batch_size_valid=1
 epoch=20
 update_freq=1
 lr=1e-4
@@ -31,12 +31,12 @@ torchrun --nproc_per_node=$n_gpu --master_port=$MASTER_PORT $(which unicore-trai
         --log-interval 1 --log-format simple \
         --validate-interval 1 \
         --best-checkpoint-metric valid_mean_r2 --patience 100 --all-gather-list-size 2048000 \
-        --no-save --save-dir $results_path --tmp-save-dir $results_path  \
+        --no-save --save-dir ./tmp --tmp-save-dir ./tmp  \
         --find-unused-parameters \
         --maximize-best-checkpoint-metric \
-        --split-method random --valid-set FEP \
+        --split-method random --valid-set DEMO \
         --max-lignum 512 \
         --sup-num $sup_num \
         --restore-model $weight_path --few-shot true \
-        --demo-lig-file lig_file --demo-prot-file prot_file --demo-split-file split_file \
+        --demo-lig-file $lig_file --demo-prot-file $prot_file --demo-split-file $split_file \
         --fp16 --fp16-init-scale 4 --fp16-scale-window 256

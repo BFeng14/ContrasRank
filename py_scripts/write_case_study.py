@@ -195,41 +195,33 @@ def write_lmdb(data, lmdb_path):
             txn.put(str(num).encode('ascii'), pickle.dumps(d))
             num += 1
 
+import sys
 if __name__ == '__main__':
-    smis = []
+    mode = sys.argv[1]
 
+    if mode == 'mol':
+        lig_file = sys.argv[2]
+        lig_write_file = sys.argv[3]
 
+        # read the ligands smiles into a list
+        smis = json.load(open(lig_file))
+        data = []
+        print("number if ligands", len(set(smis)))
+        d_active = (mol_parser(list(set(smis))))
+        data.extend(d_active)
 
-    # read the ligands smiles into a list
-    for lig in json.load(open("../test_datasets/case_study/tyk2_fep.json"))["ligands"]:
-        smis.append(lig["smi"])
-    data = []
-    print("number if ligands", len(set(smis)))
-    d_active = (mol_parser(list(set(smis))))
-    data.extend(d_active)
+        # write ligands lmdb
+        write_lmdb(data, lig_write_file)
+    elif mode == 'pocket':
+        prot_file = sys.argv[2]
+        crystal_lig_file = sys.argv[3] # must be .mol2 file
+        prot_write_file = sys.argv[4]
 
-    # write ligands lmdb
-    write_lmdb(data, f"../test_datasets/case_study/tyk2_fep_ligands.lmdb")
-
-    # write pdb lmdb
-    lines = [{
-        "pdb_file_path": "../test_datasets/case_study/tyk2_ligands.mol2",
-        "lig_file_path": "../test_datasets/case_study/tyk2_protein.pdb",
-        "pocket_name": "tyk2"
-    }]
-
-    data_all = []
-    for line in tqdm.tqdm(lines):
-        print(line)
-        pdb_file_path = line["pdb_file_path"]
-        lig_file_path = line["lig_file_path"]
-        pocket_name = line["pocket_name"]
-        print("processing", pocket_name)
         # write pocket
-        d = pocket_parser(pdb_file_path, lig_file_path, 1, pocket_name)
-        data_all.append(d)
-
-    write_lmdb(data_all, f"../test_datasets/case_study/pockets.lmdb")
+        data = []
+        d = pocket_parser(prot_file, crystal_lig_file, 1, "demo")
+        data.append(d)
+        write_lmdb(data, prot_write_file)
 
         
 
