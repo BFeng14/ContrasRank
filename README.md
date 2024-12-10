@@ -1,15 +1,17 @@
 ## Title
 abstract:
 
-## Instruction on running xxxx
+## Instruction on running our model
 
 ### Direct inference
 Colab demo for code inference with given protein and unmeasured ligands.
 
+https://colab.research.google.com/drive/11Fx6mO51rRkPvq71qupuUmscfBw8Dw5R?usp=sharing
 
 ### Few-shot fine-tuning
 Colab demo for few-shot fine-tuning with given protein, few measure ligands for fine-tuning and unmeasured ligands for testing.
 
+https://colab.research.google.com/drive/1gf0HhgyqI4qBjUAUICCvDa-FnTaARmR_?usp=sharing
 
 ## Reproduce results in our paper
 

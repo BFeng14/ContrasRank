@@ -2,9 +2,10 @@ batch_size=256
 
 lig_file=${1}
 prot_file=${2}
-arch=${3}
-weight_path=${4}
-results_path=${5}
+uniprot=${3}
+arch=${4}
+weight_path=${5}
+results_path=${6}
 echo "writing to ${results_path}"
 
 mkdir -p $results_path
@@ -15,5 +16,5 @@ python ./unimol/test.py "./vocab" --user-dir ./unimol --valid-subset test \
        --fp16 --fp16-init-scale 4 --fp16-scale-window 256  --seed 1 \
        --path $weight_path \
        --log-interval 100 --log-format simple \
-       --max-pocket-atoms 511 --demo-lig-file $lig_file --demo-prot-file $prot_file \
+       --max-pocket-atoms 511 --demo-lig-file $lig_file --demo-prot-file $prot_file --demo-uniprot $uniprot \
        --test-task DEMO

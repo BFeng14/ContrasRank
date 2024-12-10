@@ -17,8 +17,8 @@ from unicore import checkpoint_utils
 import unicore
 from unicore.data import (AppendTokenDataset, Dictionary, EpochShuffleDataset,
                           FromNumpyDataset, NestedDictionaryDataset,
-                          PrependTokenDataset, RawArrayDataset,LMDBDataset, RawLabelDataset,
-                          RightPadDataset, RightPadDataset2D, TokenizeDataset,SortDataset,data_utils)
+                          PrependTokenDataset, RawArrayDataset, LMDBDataset, RawLabelDataset,
+                          RightPadDataset, RightPadDataset2D, TokenizeDataset, SortDataset, data_utils)
 from unicore.tasks import UnicoreTask, register_task
 from unimol.data import (AffinityDataset, CroppingPocketDataset,
                          CrossDistanceDataset, DistanceDataset,
@@ -26,21 +26,25 @@ from unimol.data import (AffinityDataset, CroppingPocketDataset,
                          NormalizeDataset, NormalizeDockingPoseDataset,
                          PrependAndAppend2DDataset, RemoveHydrogenDataset,
                          RemoveHydrogenPocketDataset, RightPadDatasetCoord,
-                         RightPadDatasetCross2D, TTADockingPoseDataset, AffinityTestDataset, AffinityValidDataset, AffinityMolDataset, AffinityPocketDataset, ResamplingDataset)
-#from skchem.metrics import bedroc_score
+                         RightPadDatasetCross2D, TTADockingPoseDataset, AffinityTestDataset, AffinityValidDataset,
+                         AffinityMolDataset, AffinityPocketDataset, ResamplingDataset)
+# from skchem.metrics import bedroc_score
 from rdkit.ML.Scoring.Scoring import CalcBEDROC, CalcAUC, CalcEnrichment
 from sklearn.metrics import roc_curve
+
 logger = logging.getLogger(__name__)
 import os
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 testset_uniport_root = f"{PROJECT_ROOT}/test_datasets/testset_uniport_ids"
+
 
 def re_new(y_true, y_score, ratio):
     fp = 0
     tp = 0
     p = sum(y_true)
     n = len(y_true) - p
-    num = ratio*n
+    num = ratio * n
     sort_index = np.argsort(y_score)[::-1]
     for i in range(len(sort_index)):
         index = sort_index[i]
@@ -48,9 +52,9 @@ def re_new(y_true, y_score, ratio):
             tp += 1
         else:
             fp += 1
-            if fp>= num:
+            if fp >= num:
                 break
-    return (tp*n)/(p*fp)
+    return (tp * n) / (p * fp)
 
 
 def calc_re(y_true, y_score, ratio_list):
@@ -60,6 +64,7 @@ def calc_re(y_true, y_score, ratio_list):
         res2[str(ratio)] = re_new(y_true, y_score, ratio)
 
     return res2
+
 
 def cal_metrics(y_true, y_score, alpha):
     """
@@ -73,18 +78,18 @@ def cal_metrics(y_true, y_score, alpha):
     Returns:
     - BEDROC score
     """
-    
-        # concate res_single and labels
+
+    # concate res_single and labels
     scores = np.expand_dims(y_score, axis=1)
     y_true = np.expand_dims(y_true, axis=1)
     scores = np.concatenate((scores, y_true), axis=1)
     # inverse sort scores based on first column
-    scores = scores[scores[:,0].argsort()[::-1]]
+    scores = scores[scores[:, 0].argsort()[::-1]]
     bedroc = CalcBEDROC(scores, 1, 80.5)
     count = 0
     # sort y_score, return index
-    index  = np.argsort(y_score)[::-1]
-    for i in range(int(len(index)*0.005)):
+    index = np.argsort(y_score)[::-1]
+    for i in range(int(len(index) * 0.005)):
         if y_true[index[i]] == 1:
             count += 1
     auc = CalcAUC(scores, 1)
@@ -98,11 +103,13 @@ def cal_metrics(y_true, y_score, alpha):
     re_list = calc_re(y_true, y_score, [0.005, 0.01, 0.02, 0.05])
     return auc, bedroc, ef, re_list
 
+
 def get_uniprot_seq(uniprot):
     import urllib
     if not os.path.exists(f"./uniport_fasta/{uniprot}.fasta"):
         os.system(f"mkdir -p ./uniport_fasta")
-        urllib.request.urlretrieve(f"https://rest.uniprot.org/uniprotkb/{uniprot}.fasta", f"./uniport_fasta/{uniprot}.fasta")
+        urllib.request.urlretrieve(f"https://rest.uniprot.org/uniprotkb/{uniprot}.fasta",
+                                   f"./uniport_fasta/{uniprot}.fasta")
 
     with open(f"./uniport_fasta/{uniprot}.fasta", "r") as f:
         lines = []
@@ -165,6 +172,11 @@ class ContrasRankTest(UnicoreTask):
             type=str,
             default=""
         )
+        parser.add_argument(
+            "--demo-uniprot",
+            type=str,
+            default=""
+        )
         parser.add_argument("--reg", action="store_true", help="regression task")
 
     def __init__(self, args, dictionary, pocket_dictionary):
@@ -200,7 +212,7 @@ class ContrasRankTest(UnicoreTask):
         if split.startswith("train"):
             smi_dataset = KeyDataset(dataset, "smi")
             poc_dataset = KeyDataset(dataset, "pocket")
-            
+
             dataset = AffinityDataset(
                 dataset,
                 self.args.seed,
@@ -212,9 +224,9 @@ class ContrasRankTest(UnicoreTask):
                 True,
             )
             tgt_dataset = KeyDataset(dataset, "affinity")
-            
+
         else:
-            
+
             dataset = AffinityDataset(
                 dataset,
                 self.args.seed,
@@ -227,7 +239,6 @@ class ContrasRankTest(UnicoreTask):
             tgt_dataset = KeyDataset(dataset, "affinity")
             smi_dataset = KeyDataset(dataset, "smi")
             poc_dataset = KeyDataset(dataset, "pocket")
-
 
         def PrependAndAppend(dataset, pre_token, app_token):
             dataset = PrependTokenDataset(dataset, pre_token)
@@ -249,7 +260,6 @@ class ContrasRankTest(UnicoreTask):
         )
 
         dataset = RemoveHydrogenDataset(dataset, "atoms", "coordinates", True, True)
-
 
         apo_dataset = NormalizeDataset(dataset, "coordinates")
         apo_dataset = NormalizeDataset(apo_dataset, "pocket_coordinates")
@@ -349,9 +359,8 @@ class ContrasRankTest(UnicoreTask):
 
         return self.datasets[split]
 
+    def load_mols_dataset(self, data_path, atoms, coords, **kwargs):
 
-    def load_mols_dataset(self, data_path,atoms,coords, **kwargs):
- 
         dataset = LMDBDataset(data_path)
         # label_dataset = KeyDataset(dataset, "label")
         try:
@@ -366,7 +375,7 @@ class ContrasRankTest(UnicoreTask):
             coords,
             False,
         )
-        
+
         smi_dataset = KeyDataset(dataset, "smi")
         mol_dataset = KeyDataset(dataset, "mol")
         if kwargs.get("load_name", False):
@@ -411,7 +420,7 @@ class ContrasRankTest(UnicoreTask):
                     ),
                 },
                 "smi_name": RawArrayDataset(smi_dataset),
-                "target":  RawArrayDataset(label_dataset),
+                "target": RawArrayDataset(label_dataset),
                 "mol_len": RawArrayDataset(len_dataset),
                 "mol": RawArrayDataset(mol_dataset)
             }
@@ -442,11 +451,10 @@ class ContrasRankTest(UnicoreTask):
         nest_dataset = NestedDictionaryDataset(in_datasets)
         return nest_dataset
 
-
     def load_pockets_dataset(self, data_path, **kwargs):
 
         dataset = LMDBDataset(data_path)
- 
+
         dataset = AffinityPocketDataset(
             dataset,
             self.args.seed,
@@ -477,12 +485,7 @@ class ContrasRankTest(UnicoreTask):
             self.args.max_pocket_atoms,
         )
 
-
-
-
         apo_dataset = NormalizeDataset(dataset, "pocket_coordinates")
-
-
 
         src_pocket_dataset = KeyDataset(apo_dataset, "pocket_atoms")
         len_dataset = LengthDataset(src_pocket_dataset)
@@ -534,19 +537,18 @@ class ContrasRankTest(UnicoreTask):
         )
         return nest_dataset
 
-
     def build_model(self, args):
         from unicore import models
 
         model = models.build_model(args, self)
-        
+
         if args.finetune_mol_model is not None:
             print("load pretrain model weight from...", args.finetune_mol_model)
             state = checkpoint_utils.load_checkpoint_to_cpu(
                 args.finetune_mol_model,
             )
             model.mol_model.load_state_dict(state["model"], strict=False)
-            
+
         if args.finetune_pocket_model is not None:
             print("load pretrain model weight from...", args.finetune_pocket_model)
             state = checkpoint_utils.load_checkpoint_to_cpu(
@@ -556,22 +558,21 @@ class ContrasRankTest(UnicoreTask):
 
         return model
 
-
     def test_pcba_target(self, name, model, seq, **kwargs):
         """Encode a dataset with the molecule encoder."""
 
-        #names = "PPARG"
+        # names = "PPARG"
         data_path = f"{PROJECT_ROOT}/test_dataset/lit_pcba/" + name + "/mols.lmdb"
         mol_dataset = self.load_mols_dataset(data_path, "atoms", "coordinates")
         num_data = len(mol_dataset)
-        bsz=self.args.batch_size
-        #print(num_data//bsz)
+        bsz = self.args.batch_size
+        # print(num_data//bsz)
         mol_reps = []
         mol_names = []
         labels = []
-        
+
         # generate mol data
-        
+
         mol_data = torch.utils.data.DataLoader(mol_dataset, batch_size=bsz, num_workers=8,
                                                collate_fn=mol_dataset.collater)
         for _, sample in enumerate(tqdm(mol_data)):
@@ -626,7 +627,8 @@ class ContrasRankTest(UnicoreTask):
 
         # generate mol data
 
-        mol_data = torch.utils.data.DataLoader(mol_dataset, batch_size=bsz, collate_fn=mol_dataset.collater, num_workers=8)
+        mol_data = torch.utils.data.DataLoader(mol_dataset, batch_size=bsz, collate_fn=mol_dataset.collater,
+                                               num_workers=8)
         for _, mol_sample in enumerate(tqdm(mol_data)):
             mol_sample = unicore.utils.move_to_cuda(mol_sample)
             mol_names.extend(mol_sample["smi_name"])
@@ -635,7 +637,8 @@ class ContrasRankTest(UnicoreTask):
             # generate pocket data
             data_path = f"{PROJECT_ROOT}/test_dataset/lit_pcba/" + name + "/pockets.lmdb"
             pocket_dataset = self.load_pockets_dataset(data_path)
-            pocket_data = torch.utils.data.DataLoader(pocket_dataset, batch_size=bsz, collate_fn=pocket_dataset.collater)
+            pocket_data = torch.utils.data.DataLoader(pocket_dataset, batch_size=bsz,
+                                                      collate_fn=pocket_dataset.collater)
             act_preds = []
             pocket_names = []
 
@@ -646,7 +649,7 @@ class ContrasRankTest(UnicoreTask):
                 act_preds.append(pred.detach().cpu().numpy())
                 pocket_names.append(pocket_name)
 
-            act_preds = np.concatenate(act_preds, axis=0) # [num_pocket, num_lig]
+            act_preds = np.concatenate(act_preds, axis=0)  # [num_pocket, num_lig]
             act_preds_all.append(act_preds)
 
         labels = np.array(labels, dtype=np.int32)
@@ -664,7 +667,7 @@ class ContrasRankTest(UnicoreTask):
     def test_pcba(self, model, **kwargs):
         targets = os.listdir(f"{PROJECT_ROOT}/test_dataset/lit_pcba/")
 
-        #print(targets)
+        # print(targets)
         auc_list = []
         ef_list = []
         bedroc_list = []
@@ -682,7 +685,7 @@ class ContrasRankTest(UnicoreTask):
             "0.05": []
         }
         uniprot_list = json.load(open(f"{testset_uniport_root}/PCBA.json"))
-        target2uniport = {x[2]:x[0] for x in uniprot_list}
+        target2uniport = {x[2]: x[0] for x in uniprot_list}
 
         for target in targets:
             print(target)
@@ -711,18 +714,18 @@ class ContrasRankTest(UnicoreTask):
         print("bedroc 50%", np.percentile(bedroc_list, 50))
         print("bedroc 75%", np.percentile(bedroc_list, 75))
         print("bedroc mean", np.mean(bedroc_list))
-        #print(np.median(auc_list))
-        #print(np.median(ef_list))
+        # print(np.median(auc_list))
+        # print(np.median(ef_list))
         for key in ef_list:
             print("ef", key, "25%", np.percentile(ef_list[key], 25))
-            print("ef",key, "50%", np.percentile(ef_list[key], 50))
-            print("ef",key, "75%", np.percentile(ef_list[key], 75))
-            print("ef",key, "mean", np.mean(ef_list[key]))
+            print("ef", key, "50%", np.percentile(ef_list[key], 50))
+            print("ef", key, "75%", np.percentile(ef_list[key], 75))
+            print("ef", key, "mean", np.mean(ef_list[key]))
         for key in re_list:
-            print("re",key, "25%", np.percentile(re_list[key], 25))
-            print("re",key, "50%", np.percentile(re_list[key], 50))
-            print("re",key, "75%", np.percentile(re_list[key], 75))
-            print("re",key, "mean", np.mean(re_list[key]))
+            print("re", key, "25%", np.percentile(re_list[key], 25))
+            print("re", key, "50%", np.percentile(re_list[key], 50))
+            print("re", key, "75%", np.percentile(re_list[key], 75))
+            print("re", key, "mean", np.mean(re_list[key]))
 
         return
 
@@ -802,7 +805,8 @@ class ContrasRankTest(UnicoreTask):
 
         # generate mol data
 
-        mol_data = torch.utils.data.DataLoader(mol_dataset, batch_size=bsz, collate_fn=mol_dataset.collater, num_workers=8)
+        mol_data = torch.utils.data.DataLoader(mol_dataset, batch_size=bsz, collate_fn=mol_dataset.collater,
+                                               num_workers=8)
         for _, mol_sample in enumerate(tqdm(mol_data)):
             mol_sample = unicore.utils.move_to_cuda(mol_sample)
             mol_names.extend(mol_sample["smi_name"])
@@ -862,7 +866,7 @@ class ContrasRankTest(UnicoreTask):
         }
         targets.reverse()
         uniprot_list = json.load(open(f"{testset_uniport_root}/dude.json"))
-        target2uniport = {x[2]:x[0] for x in uniprot_list}
+        target2uniport = {x[2]: x[0] for x in uniprot_list}
 
         for i, target in enumerate(targets):
             seq = get_uniprot_seq(target2uniport[target.upper()])
@@ -902,7 +906,8 @@ class ContrasRankTest(UnicoreTask):
         # generate mol data
         print("begin with target:", target)
         print("number of mol:", len(mol_dataset))
-        mol_data = torch.utils.data.DataLoader(mol_dataset, num_workers=4, batch_size=bsz, collate_fn=mol_dataset.collater)
+        mol_data = torch.utils.data.DataLoader(mol_dataset, num_workers=4, batch_size=bsz,
+                                               collate_fn=mol_dataset.collater)
 
         for _, sample in enumerate(tqdm(mol_data)):
             sample = unicore.utils.move_to_cuda(sample)
@@ -959,7 +964,8 @@ class ContrasRankTest(UnicoreTask):
         # generate mol data
         print("begin with target:", target)
         print("number of mol:", len(mol_dataset))
-        mol_data = torch.utils.data.DataLoader(mol_dataset, batch_size=bsz, collate_fn=mol_dataset.collater, num_workers=8)
+        mol_data = torch.utils.data.DataLoader(mol_dataset, batch_size=bsz, collate_fn=mol_dataset.collater,
+                                               num_workers=8)
         for _, mol_sample in enumerate(tqdm(mol_data)):
             mol_sample = unicore.utils.move_to_cuda(mol_sample)
             mol_names.extend(mol_sample["smi_name"])
@@ -1022,7 +1028,7 @@ class ContrasRankTest(UnicoreTask):
         targets.reverse()
 
         uniprot_list = json.load(open(f"{testset_uniport_root}/dekois.json"))
-        target2uniport = {x[2]:x[0] for x in uniprot_list}
+        target2uniport = {x[2]: x[0] for x in uniprot_list}
 
         for i, target in enumerate(targets):
             if not os.path.exists(f"{PROJECT_ROOT}/test_datasets/DEKOIS_2.0x/{target}/{target}_lig.lmdb"):
@@ -1054,7 +1060,7 @@ class ContrasRankTest(UnicoreTask):
         return
 
     def test_demo(self, model):
-        data_path = self.args.results_path.demo_lig_file
+        data_path = self.args.demo_lig_file
         mol_dataset = self.load_mols_dataset(data_path, "atoms", "coordinates")
 
         bsz = 64
@@ -1071,13 +1077,13 @@ class ContrasRankTest(UnicoreTask):
             mol_smis.extend(sample["smi_name"])
         mol_reps = np.concatenate(mol_reps, axis=0)
 
-        data_path = self.args.results_path.demo_prot_file
+        data_path = self.args.demo_prot_file
         pocket_dataset = self.load_pockets_dataset(data_path)
         pocket_data = torch.utils.data.DataLoader(pocket_dataset, batch_size=bsz, collate_fn=pocket_dataset.collater)
         sample = list(pocket_data)[0]
 
         sample = unicore.utils.move_to_cuda(sample)
-        seq = get_uniprot_seq(self.args.uniprot)
+        seq = get_uniprot_seq(self.args.demo_uniprot)
         pocket_emb = model.pocket_forward(protein_sequences=seq, **sample["net_input"])
         pocket_reps = pocket_emb.detach().cpu().numpy()
 
@@ -1204,7 +1210,7 @@ class ContrasRankTest(UnicoreTask):
     def test_fep(self, model, **kwargs):
         labels_fep = json.load(
             open("/content/ContrasRank/test_datasets/FEP/fep_labels.json"))
-        ligands_dict = {x["uniprot"]:x for x in labels_fep}
+        ligands_dict = {x["uniprot"]: x for x in labels_fep}
         rho_list = []
         for i, target in enumerate(ligands_dict.keys()):
             if target == "cdk8gen":
@@ -1240,7 +1246,8 @@ class ContrasRankTest(UnicoreTask):
 
         # generate mol data
         print("number of data:", len(pdbbind_dataset))
-        mol_data = torch.utils.data.DataLoader(pdbbind_dataset, num_workers=8, batch_size=bsz, collate_fn=pdbbind_dataset.collater)
+        mol_data = torch.utils.data.DataLoader(pdbbind_dataset, num_workers=8, batch_size=bsz,
+                                               collate_fn=pdbbind_dataset.collater)
 
         for _, sample in enumerate(tqdm(mol_data)):
             # compute molecular embedding
@@ -1278,7 +1285,8 @@ class ContrasRankTest(UnicoreTask):
 
         mol_reps = []
         mol_smis = []
-        mol_data = torch.utils.data.DataLoader(bdb_dataset, num_workers=8, batch_size=bsz, collate_fn=bdb_dataset.collater)
+        mol_data = torch.utils.data.DataLoader(bdb_dataset, num_workers=8, batch_size=bsz,
+                                               collate_fn=bdb_dataset.collater)
         for _, sample in enumerate(tqdm(mol_data)):
             # compute molecular embedding
             sample = unicore.utils.move_to_cuda(sample)
@@ -1300,7 +1308,8 @@ class ContrasRankTest(UnicoreTask):
         blend_label = json.load(open(f"{self.args.data}/train_label_blend_seq_full.json"))
         pocket_dataset = self.load_pockets_dataset(data_path)
         bsz = 32
-        pocket_data = torch.utils.data.DataLoader(pocket_dataset, num_workers=8, batch_size=bsz, collate_fn=pocket_dataset.collater)
+        pocket_data = torch.utils.data.DataLoader(pocket_dataset, num_workers=8, batch_size=bsz,
+                                                  collate_fn=pocket_dataset.collater)
         pocket_reps = []
         pocket_names = []
         pocket2seq = {}

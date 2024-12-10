@@ -24,21 +24,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger("unimol.inference")
 
-
-#from skchem.metrics import bedroc_score
+# from skchem.metrics import bedroc_score
 from rdkit.ML.Scoring.Scoring import CalcBEDROC, CalcAUC, CalcEnrichment
 from sklearn.metrics import roc_curve
 
 
-
 def main(args):
-
     use_fp16 = args.fp16
     use_cuda = torch.cuda.is_available() and not args.cpu
 
     if use_cuda:
         torch.cuda.set_device(args.device_id)
-
 
     # Load model
     logger.info("loading model(s) from {}".format(args.path))
@@ -58,48 +54,45 @@ def main(args):
 
     model.eval()
     with torch.no_grad():
-        if args.test_task=="DUDE":
+        if args.test_task == "DUDE":
             task.test_dude(model)
 
-        elif args.test_task=="CASF":
+        elif args.test_task == "CASF":
             task.inference_pdbbind(model, "test")
 
-        elif args.test_task=="PCBA":
+        elif args.test_task == "PCBA":
             task.test_pcba(model)
 
-        elif args.test_task=="PDB":
+        elif args.test_task == "PDB":
             task.inference_pdbbind(model, "test")
             task.inference_pdbbind(model, "train")
 
-        elif args.test_task=="FEP":
+        elif args.test_task == "FEP":
             task.test_fep(model)
 
-        elif args.test_task=="DEKOIS":
+        elif args.test_task == "DEKOIS":
             task.test_dekois(model)
 
-        elif args.test_task=="DEMO":
+        elif args.test_task == "DEMO":
             task.test_demo(model)
 
-        elif args.test_task=="BDB":
+        elif args.test_task == "BDB":
             task.test_bdb_lig(model)
             task.test_bdb_pocket(model)
 
-        elif args.test_task=="ALL":
+        elif args.test_task == "ALL":
             task.test_fep(model)
             task.test_dekois(model)
             task.inference_dude(model)
             task.test_pcba(model)
 
 
-
-
-
 def cli_main():
     # add args
-    
 
     parser = options.get_validation_parser()
-    parser.add_argument("--test-task", type=str, default="DUDE", help="test task", choices=["DUDE", "PCBA", "CASF", "PDB", "FEP", "BDB", "DEKOIS", "ALL"])
+    parser.add_argument("--test-task", type=str, default="DUDE", help="test task",
+                        choices=["DUDE", "PCBA", "CASF", "PDB", "FEP", "BDB", "DEKOIS", "ALL", "DEMO"])
     options.add_model_args(parser)
     args = options.parse_args_and_arch(parser)
 
