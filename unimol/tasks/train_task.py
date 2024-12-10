@@ -259,6 +259,21 @@ class pocketscreen(UnicoreTask):
             default=2.0
         )
         parser.add_argument(
+            "--demo-lig-file",
+            type=str,
+            default=""
+        )
+        parser.add_argument(
+            "--demo-prot-file",
+            type=str,
+            default=""
+        )
+        parser.add_argument(
+            "--demo-split-file",
+            type=str,
+            default=""
+        )
+        parser.add_argument(
             "--case-train-ligfile",
             type=str,
             default=""
@@ -300,6 +315,28 @@ class pocketscreen(UnicoreTask):
         logger.info("ligand dictionary: {} types".format(len(mol_dictionary)))
         logger.info("pocket dictionary: {} types".format(len(pocket_dictionary)))
         return cls(args, mol_dictionary, pocket_dictionary)
+
+    def load_few_shot_demo_dataset(self, split, **kwargs):
+        ligands_lmdb = os.path.join(self.args.demo_lig_file)
+        pocket_lmdb = os.path.join(self.args.demo_prot_file)
+        split_info = json.load(self.args.demo_split_file)
+        import copy
+        pair_label = copy.deepcopy(split_info)
+
+        if split == "train":
+            pair_label["ligands"] = [lig for lig in split_info["train"]]
+            print("number of training ligands", len(pair_label["ligands"]))
+        else:
+            pair_label["ligands"] = [lig for lig in split_info["test"]]
+            print("number of testing ligands", len(pair_label["ligands"]))
+        pair_label["ligands"] = sorted(pair_label["ligands"], key=lambda x: x["act"], reverse=True)
+
+        pocket_dataset = self.load_pockets_dataset(pocket_lmdb, is_train=split=="train")
+        mol_dataset = self.load_mols_dataset(ligands_lmdb, "atoms", "coordinates", is_train=split=="train")
+        dataset = PairDataset(self.args, pocket_dataset, mol_dataset, [pair_label], split, use_cache=False)
+
+        self.datasets[split] = dataset
+        return dataset
 
     def load_few_shot_TYK2_FEP_dataset(self, split, **kwargs):
         save_path = f"{PROJECT_ROOT}/test_datasets/FEP"

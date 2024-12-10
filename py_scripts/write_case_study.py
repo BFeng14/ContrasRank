@@ -197,14 +197,21 @@ def write_lmdb(data, lmdb_path):
 
 if __name__ == '__main__':
     smis = []
+
+
+
+    # read the ligands smiles into a list
     for lig in json.load(open("../test_datasets/case_study/tyk2_fep.json"))["ligands"]:
         smis.append(lig["smi"])
     data = []
     print("number if ligands", len(set(smis)))
     d_active = (mol_parser(list(set(smis))))
     data.extend(d_active)
+
+    # write ligands lmdb
     write_lmdb(data, f"../test_datasets/case_study/tyk2_fep_ligands.lmdb")
 
+    # write pdb lmdb
     lines = [{
         "pdb_file_path": "../test_datasets/case_study/tyk2_ligands.mol2",
         "lig_file_path": "../test_datasets/case_study/tyk2_protein.pdb",

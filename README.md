@@ -94,12 +94,43 @@ path2weight="path to checkpoint of protein_ranking"
 path2result="./result/protein_ranking/OOD"
 CUDA_VISIBLE_DEVICES=0 bash test.sh OOD protein_ranking support_num ${path2weight} ${path2result}
 
-
 # get final prediction of our model
 python ensemble_result_fewshot.py OOD support_num
 ```
 
 ### Reproduce results on active learning
+to speed up the active learning process, you should modify the unicore code 
+1. find the installed dir of unicore (root-to-unicore)
+```
+python -c "import unicore; print('/'.join(unicore.__file__.split('/')[:-2]))"
+```
+
+2. goto root-to-unicore/unicore/options.py line 250, add following line
+```
+    group.add_argument('--validate-begin-epoch', type=int, default=0, metavar='N',
+                        help='validate begin epoch')
+```
+
+3. goto root-to-unicore/unicore_cli/train.py line 303, add one line
+```
+    do_validate = (
+        (not end_of_epoch and do_save)
+        or (
+            end_of_epoch
+            and epoch_itr.epoch >= args.validate_begin_epoch # !!!! add this line
+            and epoch_itr.epoch % args.validate_interval == 0
+            and not args.no_epoch_checkpoints
+        )
+        or should_stop
+        or (
+            args.validate_interval_updates > 0
+            and num_updates > 0
+            and num_updates % args.validate_interval_updates == 0
+        )
+    ) and not args.disable_validation
+```
+
+4. run the active learning procedure
 ```
 path1="path to checkpoint of pocket_ranking"
 path2="path to checkpoint of protein_ranking"
